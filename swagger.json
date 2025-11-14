@@ -3,17 +3,22 @@
     "info": {
         "title": "Shopping Cart API",
         "version": "1.0.0",
-        "description": "API for the Flutter Mini Project Shopping Cart, built with Node.js, Express, and MySQL."
+        "description": "A complete API for the Shopping Cart mini-project, built with Node.js, Express, and MySQL."
     },
     "servers": [
         {
-            "url": "/api"
+            "url": "/api",
+            "description": "Main API Server"
         }
     ],
     "tags": [
         {
             "name": "Auth",
-            "description": "Authentication and User Registration"
+            "description": "Authentication: Register and Login"
+        },
+        {
+            "name": "Profile",
+            "description": "Manage the currently logged-in user's own profile"
         },
         {
             "name": "Users",
@@ -29,7 +34,7 @@
         },
         {
             "name": "Product Statuses",
-            "description": "Manage product statuses"
+            "description": "Manage product statuses (e.g., 'Published', 'Draft')"
         },
         {
             "name": "Orders",
@@ -43,7 +48,7 @@
                     "Auth"
                 ],
                 "summary": "Register a new customer",
-                "description": "Creates a new user with the 'customer' role.",
+                "description": "Creates a new user account. The default role will always be 'customer'.",
                 "requestBody": {
                     "required": true,
                     "content": {
@@ -93,12 +98,117 @@
                 }
             }
         },
+        "/profile/me": {
+            "get": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Get my profile",
+                "description": "Returns the profile information for the currently logged-in user (Customer or Admin).",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "User profile data",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/User"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                }
+            },
+            "put": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Update my profile",
+                "description": "Updates the profile information (firstname, lastname, address, phone) for the currently logged-in user. Email and Role cannot be changed here.",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ProfileUpdate"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Profile updated successfully"
+                    },
+                    "400": {
+                        "description": "Missing required fields"
+                    },
+                    "401": {
+                        "$ref": "#/components/responses/Unauthorized"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                }
+            }
+        },
+        "/profile/change-password": {
+            "put": {
+                "tags": [
+                    "Profile"
+                ],
+                "summary": "Change my password",
+                "description": "Updates the password for the currently logged-in user after verifying the old password.",
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ],
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/ChangePassword"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password changed successfully"
+                    },
+                    "400": {
+                        "description": "Missing required fields"
+                    },
+                    "401": {
+                        "description": "Old password is not correct"
+                    },
+                    "404": {
+                        "$ref": "#/components/responses/NotFound"
+                    }
+                }
+            }
+        },
         "/users": {
             "get": {
                 "tags": [
                     "Users"
                 ],
                 "summary": "Get all users (Admin Only)",
+                "description": "Retrieves a list of all user accounts in the system.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -133,6 +243,7 @@
                     "Users"
                 ],
                 "summary": "Get user by ID (Admin Only)",
+                "description": "Retrieves a single user's information by their ID.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -170,6 +281,7 @@
                     "Users"
                 ],
                 "summary": "Update a user (Admin Only)",
+                "description": "Updates a user's information, including their 'role'.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -212,7 +324,7 @@
                     "Users"
                 ],
                 "summary": "Delete a user (Admin Only)",
-                "description": "Admins cannot delete their own account via this endpoint.",
+                "description": "Deletes a user account. Admins cannot delete their own account via this endpoint.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -244,7 +356,8 @@
                 "tags": [
                     "Products"
                 ],
-                "summary": "Get all products (Customer & Admin)",
+                "summary": "Get all products",
+                "description": "Retrieves a list of all products for the shop (for Customers and Admins).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -274,6 +387,7 @@
                     "Products"
                 ],
                 "summary": "Create a new product (Admin Only)",
+                "description": "Creates a new product with image upload (must use `multipart/form-data`).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -306,7 +420,8 @@
                 "tags": [
                     "Products"
                 ],
-                "summary": "Get product by ID (Customer & Admin)",
+                "summary": "Get product by ID",
+                "description": "Retrieves a single product's details (for Customers and Admins).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -341,6 +456,7 @@
                     "Products"
                 ],
                 "summary": "Update a product (Admin Only)",
+                "description": "Updates a product's details (must use `multipart/form-data` if changing the image).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -380,6 +496,7 @@
                     "Products"
                 ],
                 "summary": "Delete a product (Admin Only)",
+                "description": "Deletes a product and its associated image file from the server.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -411,7 +528,8 @@
                 "tags": [
                     "Categories"
                 ],
-                "summary": "Get all categories (Customer & Admin)",
+                "summary": "Get all categories",
+                "description": "Retrieves a list of all product categories (for Customers and Admins).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -438,6 +556,7 @@
                     "Categories"
                 ],
                 "summary": "Create a new category (Admin Only)",
+                "description": "Creates a new product category.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -470,7 +589,8 @@
                 "tags": [
                     "Categories"
                 ],
-                "summary": "Get category by ID (Customer & Admin)",
+                "summary": "Get category by ID",
+                "description": "Retrieves a single category's details (for Customers and Admins).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -502,6 +622,7 @@
                     "Categories"
                 ],
                 "summary": "Update a category (Admin Only)",
+                "description": "Updates a category's name or description.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -541,6 +662,7 @@
                     "Categories"
                 ],
                 "summary": "Delete a category (Admin Only)",
+                "description": "Deletes a category. Products in this category will have their `category_id` set to NULL.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -569,7 +691,8 @@
                 "tags": [
                     "Product Statuses"
                 ],
-                "summary": "Get all product statuses (Customer & Admin)",
+                "summary": "Get all product statuses",
+                "description": "Retrieves all product statuses (e.g., Published, Draft).",
                 "security": [
                     {
                         "bearerAuth": []
@@ -596,6 +719,7 @@
                     "Product Statuses"
                 ],
                 "summary": "Create a new status (Admin Only)",
+                "description": "Creates a new product status.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -628,7 +752,8 @@
                 "tags": [
                     "Product Statuses"
                 ],
-                "summary": "Get status by ID (Customer & Admin)",
+                "summary": "Get status by ID",
+                "description": "Retrieves a single status by its ID.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -660,6 +785,7 @@
                     "Product Statuses"
                 ],
                 "summary": "Update a status (Admin Only)",
+                "description": "Updates the name of a product status.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -699,6 +825,7 @@
                     "Product Statuses"
                 ],
                 "summary": "Delete a status (Admin Only)",
+                "description": "Deletes a status. Products using this status will have their `status_id` set to NULL.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -728,6 +855,7 @@
                     "Orders"
                 ],
                 "summary": "Get all orders (Admin Only)",
+                "description": "Retrieves a list of all orders from all users.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -754,6 +882,7 @@
                     "Orders"
                 ],
                 "summary": "Create a new order (Customer Only)",
+                "description": "Creates a new order from the user's shopping cart. This action will deduct stock from products and is transactional.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -775,6 +904,9 @@
                     },
                     "400": {
                         "description": "Missing fields or cart is empty"
+                    },
+                    "500": {
+                        "description": "Failed to create order (e.g., product is out of stock)"
                     }
                 }
             }
@@ -785,6 +917,7 @@
                     "Orders"
                 ],
                 "summary": "Get my orders (Customer Only)",
+                "description": "Retrieves the order history for the currently logged-in user.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -792,7 +925,7 @@
                 ],
                 "responses": {
                     "200": {
-                        "description": "A list of the logged-in user's orders",
+                        "description": "A list of the user's orders",
                         "content": {
                             "application/json": {
                                 "schema": {
@@ -812,8 +945,8 @@
                 "tags": [
                     "Orders"
                 ],
-                "summary": "Get order details by ID (Customer or Admin)",
-                "description": "Customers can only see their own orders. Admins can see any order.",
+                "summary": "Get order details by ID",
+                "description": "Retrieves the full details of a single order, including all line items. Admins can see any order; Customers can only see their own.",
                 "security": [
                     {
                         "bearerAuth": []
@@ -836,7 +969,7 @@
                         }
                     },
                     "403": {
-                        "$ref": "#/components/responses/Forbidden"
+                        "description": "Forbidden (Not the owner of the order)"
                     },
                     "404": {
                         "$ref": "#/components/responses/NotFound"
@@ -850,7 +983,8 @@
             "bearerAuth": {
                 "type": "http",
                 "scheme": "bearer",
-                "bearerFormat": "JWT"
+                "bearerFormat": "JWT",
+                "description": "Enter the JWT token obtained from login (must be prefixed with 'Bearer ')"
             }
         },
         "schemas": {
@@ -938,6 +1072,7 @@
             },
             "UserUpdate": {
                 "type": "object",
+                "description": "For an Admin to update a user's profile",
                 "required": [
                     "firstname",
                     "lastname",
@@ -969,6 +1104,47 @@
                             "customer",
                             "admin"
                         ]
+                    }
+                }
+            },
+            "ProfileUpdate": {
+                "type": "object",
+                "description": "For a Customer to update their own profile",
+                "required": [
+                    "firstname",
+                    "lastname"
+                ],
+                "properties": {
+                    "firstname": {
+                        "type": "string"
+                    },
+                    "lastname": {
+                        "type": "string"
+                    },
+                    "address": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "phone": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                }
+            },
+            "ChangePassword": {
+                "type": "object",
+                "required": [
+                    "oldPassword",
+                    "newPassword"
+                ],
+                "properties": {
+                    "oldPassword": {
+                        "type": "string",
+                        "format": "password"
+                    },
+                    "newPassword": {
+                        "type": "string",
+                        "format": "password"
                     }
                 }
             },
@@ -1023,7 +1199,7 @@
                     "photo": {
                         "type": "string",
                         "format": "binary",
-                        "description": "Image file to upload"
+                        "description": "Image file to upload (if any)"
                     },
                     "name": {
                         "type": "string"
@@ -1236,7 +1412,7 @@
                 }
             },
             "Forbidden": {
-                "description": "Forbidden. User does not have Admin rights.",
+                "description": "Forbidden. User does not have the required permissions (e.g., Admin rights).",
                 "content": {
                     "application/json": {
                         "schema": {
@@ -1286,7 +1462,7 @@
                 "name": "id",
                 "in": "path",
                 "required": true,
-                "description": "The ID of the user",
+                "description": "The user's ID",
                 "schema": {
                     "type": "integer"
                 }
@@ -1295,7 +1471,7 @@
                 "name": "productId",
                 "in": "path",
                 "required": true,
-                "description": "The ID of the product",
+                "description": "The product's ID",
                 "schema": {
                     "type": "integer"
                 }
@@ -1304,7 +1480,7 @@
                 "name": "id",
                 "in": "path",
                 "required": true,
-                "description": "The ID of the category",
+                "description": "The category's ID",
                 "schema": {
                     "type": "integer"
                 }
@@ -1313,7 +1489,7 @@
                 "name": "id",
                 "in": "path",
                 "required": true,
-                "description": "The ID of the product status",
+                "description": "The product status ID",
                 "schema": {
                     "type": "integer"
                 }
@@ -1322,7 +1498,7 @@
                 "name": "id",
                 "in": "path",
                 "required": true,
-                "description": "The ID of the order",
+                "description": "The order's ID",
                 "schema": {
                     "type": "integer"
                 }

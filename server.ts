@@ -2,10 +2,8 @@ import express, { Express } from 'express'
 import bodyParser from 'body-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
-
-// --- 1. Import Swagger ---
 import swaggerUi from 'swagger-ui-express'
-import swaggerDocument from './swagger.json' // (จะ Import ได้เพราะขั้นตอนที่ 2)
+import swaggerDocument from './swagger.json'
 
 // Initialize dotenv
 dotenv.config()
@@ -31,9 +29,9 @@ import userRoutes from './routes/userRoutes'
 import categoryRoutes from './routes/categoryRoutes'
 import productStatusRoutes from './routes/productStatusRoutes'
 import orderRoutes from './routes/orderRoutes'
+import profileRoutes from './routes/profileRoutes' // <-- 1. Import
 
-// --- 2. สร้าง Route สำหรับ Swagger UI ---
-// (ควรวางไว้ก่อน Use Routes อื่นๆ)
+// Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Use Routes
@@ -43,6 +41,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/statuses', productStatusRoutes)
 app.use('/api/orders', orderRoutes)
+app.use('/api/profile', profileRoutes) // <-- 2. Use
 
 // Listen Port
 const port: string | number = process.env.PORT || 3000
