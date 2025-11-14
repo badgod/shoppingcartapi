@@ -26,6 +26,7 @@ import productRoutes from './routes/productRoutes'
 import userRoutes from './routes/userRoutes' // <-- 1. Import
 import categoryRoutes from './routes/categoryRoutes' // <-- 1. Import
 import productStatusRoutes from './routes/productStatusRoutes' // <-- 2. Import
+import orderRoutes from './routes/orderRoutes'
 
 // Use Routes
 app.use('/api/auth', authRoutes)
@@ -33,6 +34,8 @@ app.use('/api/products', productRoutes)
 app.use('/api/users', userRoutes) // <-- 2. Use
 app.use('/api/categories', categoryRoutes) // <-- 3. Use
 app.use('/api/statuses', productStatusRoutes) // <-- 4. Use
+app.use('/api/orders', orderRoutes)
+
 
 
 // Listen Port
