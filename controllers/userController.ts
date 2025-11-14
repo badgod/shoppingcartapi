@@ -1,157 +1,109 @@
 import { Request, Response } from "express"
-import connection from "../utils/db"
-import { RequestWithUser } from "../middleware/authMiddleware" // <-- 1. Import
-import { JwtPayload } from "jsonwebtoken" // <-- 2. Import
+import pool from "../utils/db" // <-- 1. เปลี่ยนเป็น pool
+import { RequestWithUser } from "../middleware/authMiddleware"
+import { JwtPayload } from "jsonwebtoken"
+import { RowDataPacket } from "mysql2" // <-- 2. Import Type ช่วย
 
 //----------------------------------------
 // Get all users (Admin Only)
 //----------------------------------------
-function getAllUsers(req: Request, res: Response) {
-    try {
-        // เลือกข้อมูลที่จำเป็นเท่านั้น (ไม่ควรส่ง password hash กลับไป)
-        connection.execute(
-            "SELECT id, firstname, lastname, email, address, phone, role, avatar, created_at FROM users ORDER BY id DESC",
-            function (err, results) {
-                if (err) {
-                    res.json({ status: "error", message: err });
-                    return;
-                } else {
-                    res.json(results);
-                }
-            }
-        );
-    } catch (err) {
-        console.error("Error querying users: ", err);
-        res.sendStatus(500);
-    }
+export async function getAllUsers(req: Request, res: Response) {
+  try {
+    const [results] = await pool.execute(
+      "SELECT id, firstname, lastname, email, address, phone, role, avatar, created_at FROM users ORDER BY id DESC"
+    );
+    res.json(results);
+  } catch (err: any) {
+    console.error("Error querying users: ", err);
+    res.status(500).json({ status: "error", message: err.message });
+  }
 }
 
 //----------------------------------------
 // Get user by id (Admin Only)
 //----------------------------------------
-function getUserById(req: Request, res: Response) {
-    try {
-        connection.execute(
-            "SELECT id, firstname, lastname, email, address, phone, role, avatar, created_at FROM users WHERE id = ?",
-            [req.params.id],
-            function (err, results: any) {
-                if (err) {
-                    res.json({ status: "error", message: err })
-                    return
-                } else {
-                    res.json(results[0] || {})
-                }
-            }
-        )
-    } catch (err) {
-        console.error("Error querying user: ", err)
-        res.sendStatus(500)
-    }
+export async function getUserById(req: Request, res: Response) {
+  try {
+    const [results] = await pool.execute<RowDataPacket[]>(
+      "SELECT id, firstname, lastname, email, address, phone, role, avatar, created_at FROM users WHERE id = ?",
+      [req.params.id]
+    );
+    res.json(results[0] || {});
+  } catch (err: any) {
+    console.error("Error querying user: ", err);
+    res.status(500).json({ status: "error", message: err.message });
+  }
 }
 
 //----------------------------------------
 // Update user (Admin Only)
 //----------------------------------------
-function updateUser(req: Request, res: Response) {
-    const { id } = req.params;
-    const { firstname, lastname, email, address, phone, role } = req.body;
+export async function updateUser(req: Request, res: Response) {
+  const { id } = req.params;
+  const { firstname, lastname, email, address, phone, role } = req.body;
 
-    // --- Validation ---
-    if (!firstname || !lastname || !email || !role) {
-        return res.status(400).json({ status: "error", message: "Missing required fields (firstname, lastname, email, role)" });
+  if (!firstname || !lastname || !email || !role) {
+    return res.status(400).json({ status: "error", message: "Missing required fields (firstname, lastname, email, role)" });
+  }
+
+  try {
+    const [results]: any = await pool.execute(
+      "UPDATE users SET firstname = ?, lastname = ?, email = ?, address = ?, phone = ?, role = ? WHERE id = ?",
+      [firstname, lastname, email, address || null, phone || null, role, id]
+    );
+
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ status: "error", message: "User not found" });
     }
 
-    // (เราจะไม่ให้ API นี้อัปเดตรหัสผ่าน เพื่อความปลอดภัย)
+    res.json({
+      status: "ok",
+      message: "User updated successfully",
+      user: { id: parseInt(id), firstname, lastname, email, address, phone, role }
+    });
 
-    try {
-        connection.execute(
-            "UPDATE users SET firstname = ?, lastname = ?, email = ?, address = ?, phone = ?, role = ? WHERE id = ?",
-            [firstname, lastname, email, address || null, phone || null, role, id],
-            function (err, results: any) {
-                if (err) {
-                    // เช็ค Error ยอดนิยม: Email ซ้ำ
-                    if (err.code === 'ER_DUP_ENTRY') {
-                        return res.status(400).json({ status: "error", message: "This email is already in use." });
-                    }
-                    res.json({ status: "error", message: err.message });
-                    return;
-                }
-
-                if (results.affectedRows === 0) {
-                    return res.status(404).json({ status: "error", message: "User not found" });
-                }
-
-                res.json({
-                    status: "ok",
-                    message: "User updated successfully",
-                    user: {
-                        id: id,
-                        firstname,
-                        lastname,
-                        email,
-                        address,
-                        phone,
-                        role
-                    }
-                });
-            }
-        );
-    } catch (err) {
-        console.error("Error updating user: ", err);
-        res.sendStatus(500);
+  } catch (err: any) {
+    if (err.code === 'ER_DUP_ENTRY') {
+      return res.status(400).json({ status: "error", message: "This email is already in use." });
     }
+    console.error("Error updating user: ", err);
+    res.status(500).json({ status: "error", message: err.message });
+  }
 }
 
 //----------------------------------------
 // Delete user (Admin Only)
 //----------------------------------------
-function deleteUser(req: RequestWithUser, res: Response) { // <-- 3. แก้ไขตรงนี้
-    const { id: userIdToDelete } = req.params;
+export async function deleteUser(req: RequestWithUser, res: Response) {
+  const { id: userIdToDelete } = req.params;
+  const token = req.user as JwtPayload
+  const adminId = token.id
 
-    // 4. ดึง ID ของ Admin ที่กำลังล็อกอินอยู่
-    const token = req.user as JwtPayload // <-- 5. ไม่ต้อง cast (req as RequestWithUser) แล้ว
-    const adminId = token.id
+  if (String(adminId) === String(userIdToDelete)) {
+    return res.status(403).json({
+      status: "error",
+      message: "Forbidden: Admin cannot delete their own account."
+    });
+  }
 
-    // 5. ตรวจสอบว่า ID ที่จะลบ ตรงกับ ID ของ admin ที่ล็อกอินหรือไม่
-    if (String(adminId) === String(userIdToDelete)) {
-        return res.status(403).json({
-            status: "error",
-            message: "Forbidden: Admin cannot delete their own account."
-        });
+  try {
+    const [results]: any = await pool.execute(
+      "DELETE FROM users WHERE id = ?",
+      [userIdToDelete]
+    );
+
+    if (results.affectedRows === 0) {
+      return res.status(404).json({ status: "error", message: "User not found" });
     }
 
-    try {
-        connection.execute(
-            "DELETE FROM users WHERE id = ?",
-            [userIdToDelete],
-            function (err, results: any) {
-                if (err) {
-                    res.json({ status: "error", message: err.message });
-                    return;
-                }
+    res.json({
+      status: "ok",
+      message: "User deleted successfully",
+      userId: userIdToDelete
+    });
 
-                if (results.affectedRows === 0) {
-                    return res.status(404).json({ status: "error", message: "User not found" });
-                }
-
-                // --- นี่คือจุดที่แก้ไข ---
-                res.json({
-                    status: "ok",
-                    message: "User deleted successfully",
-                    userId: userIdToDelete // <-- 6. แก้ไขจาก id เป็น userIdToDelete
-                });
-            }
-        );
-    } catch (err) {
-        console.error("Error deleting user: ", err);
-        res.sendStatus(500);
-    }
-}
-
-// --- อัปเดตส่วน Export ---
-export {
-    getAllUsers,
-    getUserById,
-    updateUser,
-    deleteUser,
+  } catch (err: any) {
+    console.error("Error deleting user: ", err);
+    res.status(500).json({ status: "error", message: err.message });
+  }
 }

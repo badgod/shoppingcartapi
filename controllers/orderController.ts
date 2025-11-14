@@ -1,7 +1,9 @@
 import { Response } from "express"
-import { RequestWithUser } from "../middleware/authMiddleware" // Import ตัวขยาย Request
-import connection from "../utils/db"
+import { RequestWithUser } from "../middleware/authMiddleware"
+import pool from "../utils/db" // <-- 1. Import pool
 import { JwtPayload } from "jsonwebtoken"
+// --- 2. Import Type ที่จำเป็น ---
+import { RowDataPacket, PoolConnection } from "mysql2/promise"
 
 // Interface สำหรับข้อมูลตะกร้าสินค้าที่ส่งมาจาก Client
 interface CartItem {
@@ -28,18 +30,22 @@ export async function createOrder(req: RequestWithUser, res: Response) {
         return res.status(400).json({ status: "error", message: "Missing required fields or cart is empty" });
     }
 
-    // ใช้ Transaction เพื่อให้มั่นใจว่าทุกอย่างสำเร็จ หรือล้มเหลวพร้อมกันทั้งหมด
-    // 1. สร้าง Order -> 2. ใส่ OrderItems -> 3. ตัด Stock
+    // --- 3. แก้ไข: ประกาศ Type ให้ dbConn ---
+    let dbConn: PoolConnection | undefined;
+
     try {
-        // 1. สร้าง Order หลักในตาราง 'orders'
-        const [orderResult]: any = await connection.promise().execute(
+        dbConn = await pool.getConnection(); // 3.1 ดึง connection มา
+        await dbConn.beginTransaction(); // 3.2 เริ่ม Transaction
+
+        // 3.3 สร้าง Order หลัก (ใช้ dbConn)
+        const [orderResult]: any = await dbConn.execute(
             "INSERT INTO orders (user_id, total_price, shipping_address, status, created_at, updated_at) VALUES (?, ?, ?, 'pending', NOW(), NOW())",
             [user_id, total_price, shipping_address]
         );
 
         const newOrderId = orderResult.insertId;
 
-        // 2. เตรียมข้อมูลสำหรับ 'order_items'
+        // 3.4 เตรียมข้อมูล 'order_items'
         const orderItemsData = items.map(item => [
             newOrderId,
             item.product_id,
@@ -47,24 +53,34 @@ export async function createOrder(req: RequestWithUser, res: Response) {
             item.price
         ]);
 
-        // 2.1 ใส่ข้อมูลลง 'order_items' (Bulk Insert)
-        await connection.promise().query(
+        // 3.5 ใส่ข้อมูลลง 'order_items' (ใช้ dbConn)
+        await dbConn.query(
             "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ?",
             [orderItemsData]
         );
 
-        // 3. ตัดสต็อกสินค้า (สำคัญมาก)
+        // 3.6 ตัดสต็อกสินค้า (ใช้ dbConn)
         const stockUpdates = items.map(item =>
-            connection.promise().execute(
-                "UPDATE products SET stock = stock - ? WHERE id = ?",
-                [item.quantity, item.product_id]
+            dbConn!.execute(
+                "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?", // <-- เพิ่มการตรวจสอบสต็อก
+                [item.quantity, item.product_id, item.quantity]
             )
         );
 
-        // 3.1 รันคำสั่งตัดสต็อกทั้งหมด
-        await Promise.all(stockUpdates);
+        const stockUpdateResults = await Promise.all(stockUpdates);
 
-        // ถ้าทุกอย่างสำเร็จ
+        // ตรวจสอบว่าการตัดสต็อกสำเร็จทุกรายการ
+        for (const result of stockUpdateResults) {
+            const [resultSetHeader]: any = result;
+            if (resultSetHeader.affectedRows === 0) {
+                // ถ้ามีรายการใดรายการหนึ่งตัดสต็อกไม่สำเร็จ (เช่น ของหมด)
+                throw new Error("Failed to update stock, product might be out of stock.");
+            }
+        }
+
+        // 3.7 ถ้าทุกอย่างสำเร็จ
+        await dbConn.commit(); // <-- ยืนยัน Transaction
+
         res.status(201).json({
             status: "ok",
             message: "Order created successfully",
@@ -73,8 +89,12 @@ export async function createOrder(req: RequestWithUser, res: Response) {
 
     } catch (err: any) {
         console.error("Error creating order:", err);
-        // (ใน Production จริง ควรมี Logic ในการ Rollback transaction)
-        res.status(500).json({ status: "error", message: "Failed to create order", error: err.message });
+        // 3.8 ถ้ามีปัญหา
+        if (dbConn) await dbConn.rollback(); // <-- ยกเลิก Transaction
+        res.status(500).json({ status: "error", message: err.message || "Failed to create order" });
+    } finally {
+        // 3.9 คืน connection กลับเข้า pool
+        if (dbConn) dbConn.release();
     }
 }
 
@@ -86,8 +106,8 @@ export async function getMyOrders(req: RequestWithUser, res: Response) {
     const user_id = token.id
 
     try {
-        // ดึงออเดอร์ของ user ที่ login อยู่เท่านั้น
-        const [orders] = await connection.promise().execute(
+        // 4. ใช้ await pool.execute
+        const [orders] = await pool.execute(
             "SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC",
             [user_id]
         );
@@ -102,8 +122,8 @@ export async function getMyOrders(req: RequestWithUser, res: Response) {
 //----------------------------------------
 export async function getAllOrders(req: Request, res: Response) {
     try {
-        // Admin ดึงได้ทุกออเดอร์ (อาจจะ JOIN User เพื่อดูชื่อ)
-        const [orders] = await connection.promise().execute(
+        // 4. ใช้ await pool.execute
+        const [orders] = await pool.execute(
             `SELECT o.*, u.firstname, u.email 
        FROM orders o 
        JOIN users u ON o.user_id = u.id 
@@ -125,8 +145,8 @@ export async function getOrderDetails(req: RequestWithUser, res: Response) {
     const user_role = token.role
 
     try {
-        // 1. ดึงข้อมูล Order หลัก
-        const [orderResult]: any = await connection.promise().execute(
+        // 4. ใช้ await pool.execute
+        const [orderResult] = await pool.execute<RowDataPacket[]>(
             "SELECT * FROM orders WHERE id = ?",
             [id]
         );
@@ -137,13 +157,11 @@ export async function getOrderDetails(req: RequestWithUser, res: Response) {
 
         const order = orderResult[0];
 
-        // 2. ตรวจสอบสิทธิ์: ต้องเป็น Admin หรือ เป็นเจ้าของออเดอร์
         if (user_role !== 'admin' && order.user_id !== user_id) {
             return res.status(403).json({ status: "error", message: "Forbidden: You cannot access this order" });
         }
 
-        // 3. ดึงรายการสินค้า (order_items) ที่อยู่ในออเดอร์นี้
-        const [items] = await connection.promise().execute(
+        const [items] = await pool.execute(
             `SELECT oi.*, p.name as product_name, p.image as product_image 
        FROM order_items oi
        JOIN products p ON oi.product_id = p.id
