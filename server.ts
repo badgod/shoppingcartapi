@@ -29,7 +29,7 @@ import userRoutes from './routes/userRoutes'
 import categoryRoutes from './routes/categoryRoutes'
 import productStatusRoutes from './routes/productStatusRoutes'
 import orderRoutes from './routes/orderRoutes'
-import profileRoutes from './routes/profileRoutes' // <-- 1. Import
+import profileRoutes from './routes/profileRoutes'
 
 // Swagger UI
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
@@ -41,7 +41,7 @@ app.use('/api/users', userRoutes)
 app.use('/api/categories', categoryRoutes)
 app.use('/api/statuses', productStatusRoutes)
 app.use('/api/orders', orderRoutes)
-app.use('/api/profile', profileRoutes) // <-- 2. Use
+app.use('/api/profile', profileRoutes)
 
 // Listen Port
 const port: string | number = process.env.PORT || 3000

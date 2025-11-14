@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
-import pool from "../utils/db" // <-- 1. เปลี่ยนเป็น pool
-import { RowDataPacket } from "mysql2" // <-- 2. Import Type ช่วย
+import pool from "../utils/db" 
+import { RowDataPacket } from "mysql2" 
 
 //----------------------------------------
 // Get all statuses (Customer & Admin)
@@ -53,7 +53,7 @@ export async function createStatus(req: Request, res: Response) {
         res.status(201).json({
             status: "ok",
             message: "Status created successfully",
-            productStatus: { // <-- 3. แก้ไข Key ซ้ำ
+            productStatus: { 
                 id: results.insertId,
                 name
             }
@@ -88,7 +88,7 @@ export async function updateStatus(req: Request, res: Response) {
         res.json({
             status: "ok",
             message: "Status updated successfully",
-            productStatus: { id: parseInt(id), name } // <-- 3. แก้ไข Key ซ้ำ
+            productStatus: { id: parseInt(id), name }
         });
     } catch (err: any) {
         if (err.code === 'ER_DUP_ENTRY') {

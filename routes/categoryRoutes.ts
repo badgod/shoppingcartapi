@@ -5,11 +5,11 @@ import checkAdmin from '../middleware/adminMiddleware'
 
 const router: Router = express.Router()
 
-// --- Customer Routes (ดูได้) ---
+// --- Customer Routes ---
 router.get('/', authenticateToken, categoryController.getAllCategories)
 router.get('/:id', authenticateToken, categoryController.getCategoryById)
 
-// --- Admin Routes (จัดการ) ---
+// --- Admin Routes ---
 router.post('/', [authenticateToken, checkAdmin], categoryController.createCategory)
 router.put('/:id', [authenticateToken, checkAdmin], categoryController.updateCategory)
 router.delete('/:id', [authenticateToken, checkAdmin], categoryController.deleteCategory)

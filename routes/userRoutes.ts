@@ -7,8 +7,7 @@ import checkAdmin from '../middleware/adminMiddleware'
 // Initialize router
 const router: Router = express.Router()
 
-// เส้นทางทั้งหมดในไฟล์นี้ ต้องผ่านการยืนยันตัวตน (authenticateToken)
-// และต้องเป็น Admin (checkAdmin)
+// Admin (checkAdmin)
 router.use(authenticateToken)
 router.use(checkAdmin)
 
@@ -19,8 +18,6 @@ router.get('/', userController.getAllUsers)
 // Get user by id (Admin Only)
 // GET /api/users/1
 router.get('/:id', userController.getUserById)
-
-// --- เพิ่ม 2 เส้นทางนี้ ---
 
 // Update user (Admin Only)
 // PUT /api/users/1

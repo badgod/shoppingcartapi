@@ -1,20 +1,20 @@
-import { Request, Response } from "express" // <-- ✨ นี่คือจุดที่แก้ไข ✨
+import { Request, Response } from "express"
 import { RequestWithUser } from "../middleware/authMiddleware"
 import pool from "../utils/db"
 import { JwtPayload } from "jsonwebtoken"
-import { RowDataPacket, PoolConnection } from "mysql2/promise" 
+import { RowDataPacket, PoolConnection } from "mysql2/promise"
 
-// Interface สำหรับข้อมูลตะกร้าสินค้าที่ส่งมาจาก Client
+// Interface 
 interface CartItem {
   product_id: number
   quantity: number
-  price: number // ราคาต่อชิ้น (ณ ตอนที่ซื้อ)
+  price: number
 }
 
 interface CreateOrderInput {
   shipping_address: string
   total_price: number
-  items: CartItem[] // รายการสินค้าในตะกร้า
+  items: CartItem[]
 }
 
 //----------------------------------------
@@ -35,7 +35,6 @@ export async function createOrder(req: RequestWithUser, res: Response) {
     dbConn = await pool.getConnection();
     await dbConn.beginTransaction();
 
-    // สร้าง Order หลัก
     const [orderResult]: any = await dbConn.execute(
       "INSERT INTO orders (user_id, total_price, shipping_address, status, created_at, updated_at) VALUES (?, ?, ?, 'pending', NOW(), NOW())",
       [user_id, total_price, shipping_address]
@@ -43,7 +42,6 @@ export async function createOrder(req: RequestWithUser, res: Response) {
 
     const newOrderId = orderResult.insertId;
 
-    // เตรียม 'order_items'
     const orderItemsData = items.map(item => [
       newOrderId,
       item.product_id,
@@ -51,13 +49,11 @@ export async function createOrder(req: RequestWithUser, res: Response) {
       item.price
     ]);
 
-    // ใส่ 'order_items'
     await dbConn.query(
       "INSERT INTO order_items (order_id, product_id, quantity, price) VALUES ?",
       [orderItemsData]
     );
 
-    // ตัดสต็อก
     const stockUpdates = items.map(item =>
       dbConn!.execute(
         "UPDATE products SET stock = stock - ? WHERE id = ? AND stock >= ?",
@@ -67,7 +63,6 @@ export async function createOrder(req: RequestWithUser, res: Response) {
 
     const stockUpdateResults = await Promise.all(stockUpdates);
 
-    // ตรวจสอบการตัดสต็อก
     for (const result of stockUpdateResults) {
       const [resultSetHeader]: any = result;
       if (resultSetHeader.affectedRows === 0) {

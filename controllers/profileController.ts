@@ -38,7 +38,6 @@ export async function updateMyProfile(req: RequestWithUser, res: Response) {
     const userId = token.id
     const { firstname, lastname, address, phone } = req.body;
 
-    // (เราไม่อนุญาตให้แก้ email หรือ role ผ่านหน้านี้)
     if (!firstname || !lastname) {
         return res.status(400).json({ status: "error", message: "Firstname and Lastname are required" });
     }
@@ -78,7 +77,6 @@ export async function changePassword(req: RequestWithUser, res: Response) {
     }
 
     try {
-        // 1. ดึงรหัสผ่านเก่าจาก DB
         const [results] = await pool.execute<RowDataPacket[]>(
             "SELECT password FROM users WHERE id = ?",
             [userId]
@@ -90,16 +88,13 @@ export async function changePassword(req: RequestWithUser, res: Response) {
 
         const hashedPassword = results[0].password;
 
-        // 2. ตรวจสอบรหัสผ่านเก่า
         const isMatch = await bcrypt.compare(oldPassword, hashedPassword);
         if (!isMatch) {
             return res.status(401).json({ status: "error", message: "Old password is not correct" });
         }
 
-        // 3. Hash รหัสผ่านใหม่
         const newHashedPassword = await bcrypt.hash(newPassword, 10);
 
-        // 4. อัปเดตรหัสผ่านใหม่ลง DB
         await pool.execute(
             "UPDATE users SET password = ? WHERE id = ?",
             [newHashedPassword, userId]

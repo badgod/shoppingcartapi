@@ -1,19 +1,19 @@
 import { Request, Response } from "express"
 import multer from "multer"
 import multerConfig from "../utils/multer_config"
-import pool from "../utils/db" // <-- 1. เปลี่ยนเป็น pool
+import pool from "../utils/db" 
 import { RequestWithUser } from "../middleware/authMiddleware"
 import { JwtPayload } from "jsonwebtoken"
 import fs from "fs"
 import path from "path"
-import { RowDataPacket } from "mysql2" // <-- 2. Import Type ช่วย
+import { RowDataPacket } from "mysql2" 
 
 const upload = multer(multerConfig.config).single(multerConfig.keyUpload)
 
 //----------------------------------------
 // Get all products
 //----------------------------------------
-export async function getAllProducts(req: Request, res: Response) { // 3. เพิ่ม async
+export async function getAllProducts(req: Request, res: Response) { 
   try {
     // 4. ใช้ await pool.execute
     const [results] = await pool.execute(
@@ -29,14 +29,13 @@ export async function getAllProducts(req: Request, res: Response) { // 3. เพ
 //----------------------------------------
 // Get product by id
 //----------------------------------------
-export async function getProductById(req: Request, res: Response) { // 3. เพิ่ม async
+export async function getProductById(req: Request, res: Response) { 
   try {
-    // 4. ใช้ await pool.execute
     const [results] = await pool.execute<RowDataPacket[]>(
       "SELECT * FROM products WHERE id = ?",
       [req.params.productId]
     );
-    res.json(results[0] || {}); // 5. ส่ง object หรือ object ว่าง
+    res.json(results[0] || {}); 
   } catch (err: any) {
     console.error("Error querying product: ", err);
     res.status(500).json({ status: "error", message: err.message });
@@ -47,7 +46,7 @@ export async function getProductById(req: Request, res: Response) { // 3. เพ
 // Create product
 //----------------------------------------
 export function createProduct(req: Request, res: Response) {
-  upload(req as RequestWithUser, res, async (err) => { // 6. async อยู่ตรงนี้
+  upload(req as RequestWithUser, res, async (err) => { 
     if (err instanceof multer.MulterError) {
       console.log(`error: ${JSON.stringify(err)}`)
       return res.status(500).json({ message: err })
@@ -55,7 +54,7 @@ export function createProduct(req: Request, res: Response) {
       console.log(`error: ${JSON.stringify(err)}`)
       return res.status(500).json({ message: err })
     } else {
-      try { // 7. try...catch อยู่ข้างใน
+      try { 
         const {
           name, description, barcode, stock, price, category_id, status_id,
         } = req.body
@@ -63,7 +62,6 @@ export function createProduct(req: Request, res: Response) {
         const user_id = token.id
         const image = req.file ? req.file.filename : null
 
-        // 8. ใช้ await pool.execute
         const [results]: any = await pool.execute(
           "INSERT INTO products (name, description, barcode, image, stock, price, category_id, user_id, status_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
           [
@@ -92,7 +90,7 @@ export function createProduct(req: Request, res: Response) {
 // Update product
 //----------------------------------------
 export function updateProduct(req: Request, res: Response) {
-  upload(req as RequestWithUser, res, async (err) => { // 6. async อยู่ตรงนี้
+  upload(req as RequestWithUser, res, async (err) => { 
     if (err instanceof multer.MulterError) {
       console.log(`error: ${JSON.stringify(err)}`)
       return res.status(500).json({ message: err })
@@ -100,7 +98,7 @@ export function updateProduct(req: Request, res: Response) {
       console.log(`error: ${JSON.stringify(err)}`)
       return res.status(500).json({ message: err })
     } else {
-      try { // 7. try...catch อยู่ข้างใน
+      try { 
         const {
           name, description, barcode, stock, price, category_id, status_id,
         } = req.body
@@ -117,7 +115,6 @@ export function updateProduct(req: Request, res: Response) {
         ]
 
         if (image) {
-          // (โค้ดนี้ควรจะลบรูปเก่าก่อน ถ้ามีการอัปโหลดรูปใหม่)
           sql =
             "UPDATE products SET name = ?, description = ?, barcode = ?, image = ?, stock = ?, price = ?, category_id = ?, user_id = ?, status_id = ? WHERE id = ?"
           params = [
@@ -126,7 +123,6 @@ export function updateProduct(req: Request, res: Response) {
           ]
         }
 
-        // 8. ใช้ await pool.execute
         const [results]: any = await pool.execute(sql, params);
 
         if (results.affectedRows === 0) {
@@ -153,7 +149,7 @@ export function updateProduct(req: Request, res: Response) {
 //----------------------------------------
 // Delete product
 //----------------------------------------
-export async function deleteProduct(req: Request, res: Response) { // 3. เพิ่ม async
+export async function deleteProduct(req: Request, res: Response) { 
   const { productId } = req.params;
 
   try {
@@ -168,7 +164,6 @@ export async function deleteProduct(req: Request, res: Response) { // 3. เพ�
     }
     const imageName = results[0].image;
 
-    // 2. ลบข้อมูลสินค้า
     const [deleteResult]: any = await pool.execute(
       "DELETE FROM products WHERE id = ?",
       [productId]
@@ -178,7 +173,6 @@ export async function deleteProduct(req: Request, res: Response) { // 3. เพ�
       return res.status(404).json({ status: "error", message: "Product not found (race condition)" });
     }
 
-    // 3. ถ้าลบ DB สำเร็จ ค่อยลบไฟล์
     if (imageName) {
       const filePath = path.join(
         __dirname,
@@ -192,7 +186,6 @@ export async function deleteProduct(req: Request, res: Response) { // 3. เพ�
       });
     }
 
-    // 4. ตอบกลับ
     res.json({
       status: "ok",
       message: "Product deleted successfully",

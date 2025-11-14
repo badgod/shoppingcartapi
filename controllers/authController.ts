@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken"
 import bcrypt from "bcrypt"
 import { Request, Response } from "express"
-import pool from "../utils/db" // <-- 1. เปลี่ยนเป็น pool
+import pool from "../utils/db" 
 
-// Interface UserInput (เหมือนเดิม)
+// Interface UserInput
 interface UserInput {
   firstname: string
   lastname: string
@@ -18,7 +18,6 @@ export async function register(req: Request, res: Response): Promise<void> {
   const { firstname, lastname, email, password, address, phone }: UserInput = req.body
 
   try {
-    // 2. ใช้ await และ pool.execute
     const [results]: any = await pool.execute(
       "SELECT * FROM users WHERE email = ?",
       [email]
@@ -29,14 +28,12 @@ export async function register(req: Request, res: Response): Promise<void> {
       return;
     }
 
-    // 3. ใช้ await กับ bcrypt
     const hash = await bcrypt.hash(password, 10);
 
     const query =
       "INSERT INTO users (firstname, lastname, email, password, address, phone, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())";
     const values = [firstname, lastname, email, hash, address || null, phone || null];
 
-    // 4. ใช้ await กับ pool.execute
     const [insertResult]: any = await pool.execute(query, values);
 
     const token = jwt.sign(
@@ -55,7 +52,7 @@ export async function register(req: Request, res: Response): Promise<void> {
       },
     });
 
-  } catch (err: any) { // 5. จัดการ Error ใน catch block
+  } catch (err: any) { 
     console.error("Error storing user in the database: ", err);
     res.status(500).json({ status: "error", message: err.message });
   }
@@ -77,7 +74,7 @@ export async function login(req: Request, res: Response): Promise<void> {
     }
 
     const user = results[0];
-    // 6. ใช้ await กับ bcrypt
+    
     const result = await bcrypt.compare(password, user.password);
 
     if (result) {

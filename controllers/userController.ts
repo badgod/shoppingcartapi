@@ -1,8 +1,8 @@
 import { Request, Response } from "express"
-import pool from "../utils/db" // <-- 1. เปลี่ยนเป็น pool
+import pool from "../utils/db" 
 import { RequestWithUser } from "../middleware/authMiddleware"
 import { JwtPayload } from "jsonwebtoken"
-import { RowDataPacket } from "mysql2" // <-- 2. Import Type ช่วย
+import { RowDataPacket } from "mysql2" 
 
 //----------------------------------------
 // Get all users (Admin Only)
