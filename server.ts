@@ -3,6 +3,10 @@ import bodyParser from 'body-parser'
 import cors from 'cors'
 import dotenv from 'dotenv'
 
+// --- 1. Import Swagger ---
+import swaggerUi from 'swagger-ui-express'
+import swaggerDocument from './swagger.json' // (จะ Import ได้เพราะขั้นตอนที่ 2)
+
 // Initialize dotenv
 dotenv.config()
 
@@ -23,20 +27,22 @@ app.use('/uploads/images', express.static('uploads/images'))
 // Routes
 import authRoutes from './routes/authRoutes'
 import productRoutes from './routes/productRoutes'
-import userRoutes from './routes/userRoutes' // <-- 1. Import
-import categoryRoutes from './routes/categoryRoutes' // <-- 1. Import
-import productStatusRoutes from './routes/productStatusRoutes' // <-- 2. Import
+import userRoutes from './routes/userRoutes'
+import categoryRoutes from './routes/categoryRoutes'
+import productStatusRoutes from './routes/productStatusRoutes'
 import orderRoutes from './routes/orderRoutes'
+
+// --- 2. สร้าง Route สำหรับ Swagger UI ---
+// (ควรวางไว้ก่อน Use Routes อื่นๆ)
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Use Routes
 app.use('/api/auth', authRoutes)
 app.use('/api/products', productRoutes)
-app.use('/api/users', userRoutes) // <-- 2. Use
-app.use('/api/categories', categoryRoutes) // <-- 3. Use
-app.use('/api/statuses', productStatusRoutes) // <-- 4. Use
+app.use('/api/users', userRoutes)
+app.use('/api/categories', categoryRoutes)
+app.use('/api/statuses', productStatusRoutes)
 app.use('/api/orders', orderRoutes)
-
-
 
 // Listen Port
 const port: string | number = process.env.PORT || 3000
